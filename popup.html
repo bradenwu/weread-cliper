@@ -165,12 +165,35 @@
 
     .loading {
       display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
       padding: 40px 20px;
       color: #888;
       font-size: 13px;
       gap: 8px;
+    }
+
+    .loading-main {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .loading-log {
+      width: 100%;
+      max-height: 180px;
+      overflow: auto;
+      padding: 10px 12px;
+      border: 1px solid #e8e8e8;
+      border-radius: 6px;
+      background: #fff;
+      color: #666;
+      font-size: 11px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-break: break-word;
     }
 
     .spinner {
@@ -213,8 +236,11 @@
   </div>
 
   <div id="loading" class="loading">
-    <div class="spinner"></div>
-    <span>正在提取文本...</span>
+    <div class="loading-main">
+      <div class="spinner"></div>
+      <span id="loadingText">popup.html 已加载，等待 popup.js...</span>
+    </div>
+    <pre id="loadingLog" class="loading-log">[popup-html v2026.03.29.2] 已渲染，等待脚本启动…</pre>
   </div>
 
   <div id="content" style="display:none;">
@@ -250,140 +276,12 @@
     </div>
 
     <div class="footer">
-      WeRead Clipper v1.0 · 微信读书文本复制工具
+      WeRead Clipper v1.1 · 微信读书文本复制工具
     </div>
   </div>
 
   <div class="toast" id="toast"></div>
 
-  <script>
-    let extractedData = null;
-
-    // 显示提示
-    function showToast(message) {
-      const toast = document.getElementById('toast');
-      toast.textContent = message;
-      toast.classList.add('show');
-      setTimeout(() => toast.classList.remove('show'), 2000);
-    }
-
-    // 初始化：尝试提取文本
-    async function init() {
-      try {
-        // 获取当前活动标签页
-        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-
-        if (!tab) {
-          showError('无法获取当前标签页');
-          return;
-        }
-
-        // 检查是否在微信读书页面
-        if (!tab.url || !tab.url.includes('weread.qq.com')) {
-          showError('请在微信读书阅读页面使用本插件');
-          return;
-        }
-
-        // 发送消息到 content script 提取文本
-        chrome.tabs.sendMessage(tab.id, { action: 'extractText' }, (response) => {
-          if (chrome.runtime.lastError) {
-            showError('无法连接到页面。请刷新页面后重试。');
-            return;
-          }
-
-          if (!response) {
-            showError('未收到响应。请刷新页面后重试。');
-            return;
-          }
-
-          if (!response.success) {
-            showError(response.error || '提取失败');
-            return;
-          }
-
-          // 显示结果
-          extractedData = response;
-          showResult(response);
-        });
-      } catch (err) {
-        showError('发生错误: ' + err.message);
-      }
-    }
-
-    function showError(msg) {
-      document.getElementById('loading').style.display = 'none';
-      document.getElementById('content').style.display = 'block';
-      document.getElementById('status').className = 'status error';
-      document.getElementById('status').textContent = '⚠️ ' + msg;
-      document.getElementById('info').style.display = 'none';
-      document.getElementById('preview').style.display = 'none';
-      document.querySelector('.actions').style.display = 'none';
-    }
-
-    function showResult(data) {
-      document.getElementById('loading').style.display = 'none';
-      document.getElementById('content').style.display = 'block';
-      document.getElementById('status').className = 'status success';
-      document.getElementById('status').textContent = '✅ 成功提取文本内容';
-
-      document.getElementById('bookName').textContent = data.book || '未知';
-      document.getElementById('chapterName').textContent = data.chapter || '未知';
-      document.getElementById('charCount').textContent = (data.charCount || 0) + ' 字';
-
-      // 预览（截取前200字）
-      const previewText = data.rawText || data.text || '';
-      document.getElementById('previewText').textContent =
-        previewText.length > 200 ? previewText.substring(0, 200) + '...' : previewText;
-
-      // 启用按钮
-      document.getElementById('btnCopy').disabled = false;
-      document.getElementById('btnPreview').disabled = false;
-    }
-
-    // 复制按钮
-    document.getElementById('btnCopy').addEventListener('click', async () => {
-      if (!extractedData) return;
-
-      try {
-        await navigator.clipboard.writeText(extractedData.text);
-        showToast('✅ 已复制到剪贴板！');
-
-        const btn = document.getElementById('btnCopy');
-        btn.textContent = '✅ 已复制！';
-        setTimeout(() => { btn.textContent = '📋 复制全部文本'; }, 2000);
-      } catch (err) {
-        // Fallback: 通过 content script 复制
-        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-        if (tab) {
-          chrome.tabs.sendMessage(tab.id, {
-            action: 'copyToClipboard',
-            text: extractedData.text
-          }, (response) => {
-            if (response && response.success) {
-              showToast('✅ 已复制到剪贴板！');
-            } else {
-              showToast('❌ 复制失败，请手动复制');
-            }
-          });
-        }
-      }
-    });
-
-    // 预览按钮
-    document.getElementById('btnPreview').addEventListener('click', async () => {
-      if (!extractedData) return;
-
-      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-      if (tab) {
-        chrome.tabs.sendMessage(tab.id, { action: 'selectText' }, (response) => {
-          // 关闭 popup
-          window.close();
-        });
-      }
-    });
-
-    // 启动
-    init();
-  </script>
+  <script src="popup.js"></script>
 </body>
 </html>

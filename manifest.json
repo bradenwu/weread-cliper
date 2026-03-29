@@ -6,7 +6,11 @@
   "permissions": [
     "activeTab",
     "clipboardWrite",
-    "scripting"
+    "scripting",
+    "tabs"
+  ],
+  "host_permissions": [
+    "https://weread.qq.com/*"
   ],
   "action": {
     "default_popup": "popup.html",

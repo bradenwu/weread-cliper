@@ -12,3 +12,5 @@ Thumbs.db
 # Build
 dist/
 *.zip
+.claude/
+
