@@ -1,117 +1,74 @@
-/**
- * content.js 单元测试
- * 覆盖：HTML 转义、预览 overlay、ESC 监听清理
- */
+describe('content script 页面控制器', () => {
+  let listener;
 
-global.chrome = { runtime: { onMessage: { addListener: jest.fn() } } };
-
-function escapeHtml(str) {
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
-
-function removeOverlay() {
-  const overlay = document.getElementById('weread-cliper-highlight');
-  if (overlay) {
-    overlay.remove();
-  }
-}
-
-function showOverlay(text) {
-  removeOverlay();
-
-  const overlay = document.createElement('div');
-  overlay.id = 'weread-cliper-highlight';
-  overlay.innerHTML = `
-    <button id="weread-cliper-close">✕</button>
-    <pre>${escapeHtml(text)}</pre>
-    <button id="weread-cliper-copy">copy</button>
-  `;
-  document.body.appendChild(overlay);
-
-  const escHandler = (event) => {
-    if (event.key === 'Escape') {
-      overlay.remove();
-      document.removeEventListener('keydown', escHandler);
-    }
-  };
-
-  document.getElementById('weread-cliper-close').addEventListener('click', () => {
-    overlay.remove();
-    document.removeEventListener('keydown', escHandler);
-  });
-
-  document.getElementById('weread-cliper-copy').addEventListener('click', () => {
-    navigator.clipboard.writeText(text);
-  });
-
-  document.addEventListener('keydown', escHandler);
-}
-
-describe('escapeHtml', () => {
-  test('转义危险字符', () => {
-    expect(escapeHtml('<script>alert("xss")</script>'))
-      .toBe('&lt;script&gt;alert(&quot;xss&quot;)&lt;/script&gt;');
-  });
-
-  test('普通文字保持不变', () => {
-    expect(escapeHtml('普通文字 123')).toBe('普通文字 123');
-  });
-});
-
-describe('showOverlay', () => {
   beforeEach(() => {
+    jest.resetModules();
+    document.head.innerHTML = '';
     document.body.innerHTML = '';
+    listener = null;
+    global.chrome = {
+      runtime: {
+        onMessage: {
+          addListener: jest.fn((callback) => { listener = callback; }),
+        },
+      },
+    };
     Object.defineProperty(navigator, 'clipboard', {
-      value: { writeText: jest.fn().mockResolvedValue(undefined) },
       configurable: true,
+      value: { writeText: jest.fn().mockResolvedValue(undefined) },
     });
+    require('../content.js');
   });
 
-  test('插入 overlay 且文本被转义', () => {
-    showOverlay('<b>hello</b>');
+  function dispatch(message) {
+    return new Promise((resolve) => listener(message, {}, resolve));
+  }
+
+  test('预览浮层转义 HTML，支持复制和关闭', async () => {
+    const result = await dispatch({ type: 'SHOW_PREVIEW', text: '<script>危险</script>' });
+    expect(result.success).toBe(true);
 
     const overlay = document.getElementById('weread-cliper-highlight');
-    expect(overlay).not.toBeNull();
-    expect(overlay.innerHTML).toContain('&lt;b&gt;hello&lt;/b&gt;');
-  });
+    expect(overlay.innerHTML).toContain('&lt;script&gt;危险&lt;/script&gt;');
 
-  test('重复打开时会替换旧 overlay', () => {
-    showOverlay('first');
-    showOverlay('second');
-
-    expect(document.querySelectorAll('#weread-cliper-highlight')).toHaveLength(1);
-    expect(document.body.textContent).toContain('second');
-    expect(document.body.textContent).not.toContain('first');
-  });
-
-  test('点击关闭按钮时移除 overlay', () => {
-    const removeEventListenerSpy = jest.spyOn(document, 'removeEventListener');
-
-    showOverlay('close me');
-    document.getElementById('weread-cliper-close').click();
-
-    expect(document.getElementById('weread-cliper-highlight')).toBeNull();
-    expect(removeEventListenerSpy).toHaveBeenCalledWith('keydown', expect.any(Function));
-
-    removeEventListenerSpy.mockRestore();
-  });
-
-  test('按 ESC 时移除 overlay', () => {
-    showOverlay('esc');
-    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-
-    expect(document.getElementById('weread-cliper-highlight')).toBeNull();
-  });
-
-  test('点击复制按钮时写入剪贴板', async () => {
-    showOverlay('copy me');
     document.getElementById('weread-cliper-copy').click();
-
     await Promise.resolve();
-    expect(navigator.clipboard.writeText).toHaveBeenCalledWith('copy me');
+    expect(navigator.clipboard.writeText).toHaveBeenCalledWith('<script>危险</script>');
+
+    document.getElementById('weread-cliper-close').click();
+    expect(document.getElementById('weread-cliper-highlight')).toBeNull();
+  });
+
+  test('截图准备阶段隐藏固定工具栏，恢复阶段还原样式', async () => {
+    document.body.innerHTML = `
+      <span class="readerTopBar_title_link">测试书籍</span>
+      <span class="readerTopBar_title_chapter">测试章节</span>
+      <div id="toolbar" style="position: fixed; visibility: visible;">工具栏</div>
+      <div id="scroller" style="overflow-y: auto;"></div>
+    `;
+    const scroller = document.getElementById('scroller');
+    Object.defineProperties(scroller, {
+      clientHeight: { value: 600 },
+      scrollHeight: { value: 1800 },
+      scrollTop: { value: 300, writable: true },
+    });
+
+    const prepared = await dispatch({ type: 'PREPARE_CAPTURE' });
+    expect(prepared).toEqual({
+      success: true,
+      book: '测试书籍',
+      chapter: '测试章节',
+      atBottom: false,
+    });
+    expect(document.getElementById('toolbar').style.visibility).toBe('hidden');
+    expect(scroller.scrollTop).toBe(0);
+
+    const scrolled = await dispatch({ type: 'SCROLL_NEXT' });
+    expect(scrolled.atBottom).toBe(false);
+    expect(scroller.scrollTop).toBe(468);
+
+    await dispatch({ type: 'RESTORE_CAPTURE' });
+    expect(document.getElementById('toolbar').style.visibility).toBe('visible');
+    expect(scroller.scrollTop).toBe(300);
   });
 });

@@ -13,4 +13,5 @@ Thumbs.db
 dist/
 *.zip
 .claude/
-
+test-results/
+playwright-report/
