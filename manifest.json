@@ -1,13 +1,23 @@
 {
   "manifest_version": 3,
   "name": "WeRead Clipper",
-  "version": "1.0.0",
-  "description": "复制微信读书当前页所有文本内容",
+  "version": "2.0.0",
+  "description": "使用本地 OCR 自动提取微信读书当前章节文本",
+  "minimum_chrome_version": "109",
   "permissions": [
     "activeTab",
     "clipboardWrite",
-    "scripting"
+    "downloads",
+    "offscreen",
+    "storage",
+    "tabs"
   ],
+  "host_permissions": [
+    "https://weread.qq.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
   "action": {
     "default_popup": "popup.html",
     "default_icon": {
@@ -30,5 +40,8 @@
       "css": ["content.css"],
       "run_at": "document_idle"
     }
-  ]
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
+  }
 }

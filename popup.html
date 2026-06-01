@@ -5,385 +5,78 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>WeRead Clipper</title>
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
+    * { box-sizing: border-box; }
     body {
-      width: 380px;
-      min-height: 200px;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: #f7f7f7;
-      color: #333;
+      width: 420px;
+      margin: 0;
+      color: #24312b;
+      background: #f6f8f7;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
-
-    .header {
-      background: #07c160;
-      color: #fff;
-      padding: 16px 20px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .header h1 {
-      font-size: 16px;
-      font-weight: 600;
-    }
-
-    .header .logo {
-      font-size: 22px;
-    }
-
+    header { padding: 18px 20px; color: #fff; background: #07c160; }
+    h1 { margin: 0 0 4px; font-size: 18px; }
+    header p { margin: 0; font-size: 12px; opacity: 0.9; }
+    main { padding: 16px 20px 20px; }
     .status {
-      padding: 12px 20px;
-      font-size: 13px;
-      color: #888;
-      border-bottom: 1px solid #e8e8e8;
-    }
-
-    .status.error {
-      color: #e74c3c;
-      background: #fef0ef;
-    }
-
-    .status.success {
-      color: #07c160;
-      background: #f0faf4;
-    }
-
-    .info {
-      padding: 12px 20px;
-      border-bottom: 1px solid #e8e8e8;
-    }
-
-    .info-row {
-      display: flex;
-      justify-content: space-between;
-      padding: 4px 0;
-      font-size: 13px;
-    }
-
-    .info-row .label {
-      color: #888;
-    }
-
-    .info-row .value {
-      color: #333;
-      font-weight: 500;
-      max-width: 220px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .actions {
-      padding: 16px 20px;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-
-    .btn {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      padding: 12px 16px;
-      border: none;
+      padding: 12px;
+      border: 1px solid #dfe7e3;
       border-radius: 8px;
-      font-size: 14px;
-      font-weight: 500;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-
-    .btn-primary {
-      background: #07c160;
-      color: #fff;
-    }
-
-    .btn-primary:hover {
-      background: #06ad56;
-    }
-
-    .btn-primary:disabled {
-      background: #ccc;
-      cursor: not-allowed;
-    }
-
-    .btn-secondary {
       background: #fff;
-      color: #333;
-      border: 1px solid #ddd;
-    }
-
-    .btn-secondary:hover {
-      background: #f5f5f5;
-    }
-
-    .btn-secondary:disabled {
-      color: #ccc;
-      cursor: not-allowed;
-    }
-
-    .preview {
-      padding: 12px 20px;
-      max-height: 150px;
-      overflow: hidden;
-    }
-
-    .preview-label {
-      font-size: 12px;
-      color: #888;
-      margin-bottom: 8px;
-    }
-
-    .preview-text {
-      font-size: 12px;
+      font-size: 13px;
       line-height: 1.6;
-      color: #666;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      display: -webkit-box;
-      -webkit-line-clamp: 6;
-      -webkit-box-orient: vertical;
+    }
+    .status.error { color: #b42318; border-color: #f4c7c3; background: #fff6f5; }
+    .status.success { color: #067a3e; border-color: #b7e5ca; background: #f3fff7; }
+    progress { width: 100%; height: 8px; margin-top: 10px; accent-color: #07c160; }
+    .meta { margin: 12px 0; color: #66736e; font-size: 12px; line-height: 1.7; }
+    textarea {
+      width: 100%;
+      height: 220px;
+      padding: 10px;
+      resize: vertical;
+      border: 1px solid #dfe7e3;
+      border-radius: 8px;
       background: #fff;
-      padding: 10px 12px;
-      border-radius: 6px;
-      border: 1px solid #eee;
+      color: #24312b;
+      font-size: 12px;
+      line-height: 1.7;
     }
-
-    .footer {
-      padding: 8px 20px;
-      text-align: center;
-      font-size: 11px;
-      color: #bbb;
+    .actions { display: grid; gap: 8px; margin-top: 12px; }
+    button {
+      padding: 11px 14px;
+      border: 1px solid #dfe7e3;
+      border-radius: 8px;
+      background: #fff;
+      color: #24312b;
+      cursor: pointer;
+      font-size: 14px;
     }
-
-    .loading {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 40px 20px;
-      color: #888;
-      font-size: 13px;
-      gap: 8px;
-    }
-
-    .spinner {
-      width: 16px;
-      height: 16px;
-      border: 2px solid #ddd;
-      border-top-color: #07c160;
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-    }
-
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-
-    .toast {
-      position: fixed;
-      bottom: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: #333;
-      color: #fff;
-      padding: 8px 20px;
-      border-radius: 20px;
-      font-size: 13px;
-      opacity: 0;
-      transition: opacity 0.3s;
-      pointer-events: none;
-    }
-
-    .toast.show {
-      opacity: 1;
-    }
+    button.primary { border-color: #07c160; color: #fff; background: #07c160; }
+    button:disabled { cursor: not-allowed; opacity: 0.5; }
+    .secondary-actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .hint { margin: 12px 0 0; color: #87938e; font-size: 11px; line-height: 1.5; }
   </style>
 </head>
 <body>
-  <div class="header">
-    <span class="logo">📖</span>
-    <h1>WeRead Clipper</h1>
-  </div>
-
-  <div id="loading" class="loading">
-    <div class="spinner"></div>
-    <span>正在提取文本...</span>
-  </div>
-
-  <div id="content" style="display:none;">
-    <div id="status" class="status"></div>
-
-    <div id="info" class="info">
-      <div class="info-row">
-        <span class="label">📚 书籍</span>
-        <span class="value" id="bookName">-</span>
-      </div>
-      <div class="info-row">
-        <span class="label">📑 章节</span>
-        <span class="value" id="chapterName">-</span>
-      </div>
-      <div class="info-row">
-        <span class="label">📊 字数</span>
-        <span class="value" id="charCount">0</span>
-      </div>
-    </div>
-
-    <div id="preview" class="preview">
-      <div class="preview-label">预览</div>
-      <div class="preview-text" id="previewText"></div>
-    </div>
-
+  <header>
+    <h1>📖 WeRead Clipper</h1>
+    <p>视觉截屏 · 本地 OCR · 自动去重拼接</p>
+  </header>
+  <main>
+    <section id="status" class="status">正在读取任务状态…</section>
+    <progress id="progress" max="1" value="0"></progress>
+    <div id="meta" class="meta"></div>
+    <textarea id="result" placeholder="提取完成后，章节文本会显示在这里" readonly></textarea>
     <div class="actions">
-      <button class="btn btn-primary" id="btnCopy" disabled>
-        📋 复制全部文本
-      </button>
-      <button class="btn btn-secondary" id="btnPreview" disabled>
-        👁️ 页面内预览
-      </button>
+      <button id="start" class="primary">开始提取当前章节</button>
+      <div class="secondary-actions">
+        <button id="copy" disabled>复制文本</button>
+        <button id="preview" disabled>页面预览</button>
+        <button id="export" disabled>导出 TXT</button>
+      </div>
     </div>
-
-    <div class="footer">
-      WeRead Clipper v1.0 · 微信读书文本复制工具
-    </div>
-  </div>
-
-  <div class="toast" id="toast"></div>
-
-  <script>
-    let extractedData = null;
-
-    // 显示提示
-    function showToast(message) {
-      const toast = document.getElementById('toast');
-      toast.textContent = message;
-      toast.classList.add('show');
-      setTimeout(() => toast.classList.remove('show'), 2000);
-    }
-
-    // 初始化：尝试提取文本
-    async function init() {
-      try {
-        // 获取当前活动标签页
-        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-
-        if (!tab) {
-          showError('无法获取当前标签页');
-          return;
-        }
-
-        // 检查是否在微信读书页面
-        if (!tab.url || !tab.url.includes('weread.qq.com')) {
-          showError('请在微信读书阅读页面使用本插件');
-          return;
-        }
-
-        // 发送消息到 content script 提取文本
-        chrome.tabs.sendMessage(tab.id, { action: 'extractText' }, (response) => {
-          if (chrome.runtime.lastError) {
-            showError('无法连接到页面。请刷新页面后重试。');
-            return;
-          }
-
-          if (!response) {
-            showError('未收到响应。请刷新页面后重试。');
-            return;
-          }
-
-          if (!response.success) {
-            showError(response.error || '提取失败');
-            return;
-          }
-
-          // 显示结果
-          extractedData = response;
-          showResult(response);
-        });
-      } catch (err) {
-        showError('发生错误: ' + err.message);
-      }
-    }
-
-    function showError(msg) {
-      document.getElementById('loading').style.display = 'none';
-      document.getElementById('content').style.display = 'block';
-      document.getElementById('status').className = 'status error';
-      document.getElementById('status').textContent = '⚠️ ' + msg;
-      document.getElementById('info').style.display = 'none';
-      document.getElementById('preview').style.display = 'none';
-      document.querySelector('.actions').style.display = 'none';
-    }
-
-    function showResult(data) {
-      document.getElementById('loading').style.display = 'none';
-      document.getElementById('content').style.display = 'block';
-      document.getElementById('status').className = 'status success';
-      document.getElementById('status').textContent = '✅ 成功提取文本内容';
-
-      document.getElementById('bookName').textContent = data.book || '未知';
-      document.getElementById('chapterName').textContent = data.chapter || '未知';
-      document.getElementById('charCount').textContent = (data.charCount || 0) + ' 字';
-
-      // 预览（截取前200字）
-      const previewText = data.rawText || data.text || '';
-      document.getElementById('previewText').textContent =
-        previewText.length > 200 ? previewText.substring(0, 200) + '...' : previewText;
-
-      // 启用按钮
-      document.getElementById('btnCopy').disabled = false;
-      document.getElementById('btnPreview').disabled = false;
-    }
-
-    // 复制按钮
-    document.getElementById('btnCopy').addEventListener('click', async () => {
-      if (!extractedData) return;
-
-      try {
-        await navigator.clipboard.writeText(extractedData.text);
-        showToast('✅ 已复制到剪贴板！');
-
-        const btn = document.getElementById('btnCopy');
-        btn.textContent = '✅ 已复制！';
-        setTimeout(() => { btn.textContent = '📋 复制全部文本'; }, 2000);
-      } catch (err) {
-        // Fallback: 通过 content script 复制
-        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-        if (tab) {
-          chrome.tabs.sendMessage(tab.id, {
-            action: 'copyToClipboard',
-            text: extractedData.text
-          }, (response) => {
-            if (response && response.success) {
-              showToast('✅ 已复制到剪贴板！');
-            } else {
-              showToast('❌ 复制失败，请手动复制');
-            }
-          });
-        }
-      }
-    });
-
-    // 预览按钮
-    document.getElementById('btnPreview').addEventListener('click', async () => {
-      if (!extractedData) return;
-
-      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-      if (tab) {
-        chrome.tabs.sendMessage(tab.id, { action: 'selectText' }, (response) => {
-          // 关闭 popup
-          window.close();
-        });
-      }
-    });
-
-    // 启动
-    init();
-  </script>
+    <p class="hint">识别完全在本地完成。提取期间请保持微信读书标签页位于当前窗口前台。</p>
+  </main>
+  <script src="popup.js"></script>
 </body>
 </html>

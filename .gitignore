@@ -12,3 +12,6 @@ Thumbs.db
 # Build
 dist/
 *.zip
+.claude/
+test-results/
+playwright-report/
