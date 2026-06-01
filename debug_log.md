@@ -1,6 +1,53 @@
-# WeRead Clipper Debug Log
+# WeRead Clipper 旧方案排查日志
 
-更新时间：2026-03-29
+> 归档说明：本文记录 2026-03-29 期间对 DOM、运行态对象、meta 摘要和网络响应 hook
+> 的探索过程。自 2026-06-01 起，项目已经切换为“自动滚动截图 + 本地 OCR +
+> 模糊去重拼接”架构。本文只用于查询历史，不代表当前实现，也不应作为后续开发路线。
+
+原始记录时间：2026-03-29
+
+归档时间：2026-06-01
+
+## 0. 当前状态索引（2026-06-01）
+
+当前实现不再使用本文中的正文 DOM 提取、Vue store 扫描、meta 摘要兜底或网络响应 hook。
+
+请优先阅读：
+
+- `README.md`：当前用户能力、安装和使用方法；
+- `AGENTS.md`：当前工程契约、模块边界和测试要求；
+- `OCR_REFACTOR_LOG.md`：从旧方案迁移到本地 OCR 架构的执行记录。
+
+当前 OCR 架构：
+
+| 模块 | 文件 | 职责 |
+| --- | --- | --- |
+| Popup | `popup.html`、`popup.js` | 发起任务、展示进度、复制、预览和导出 TXT。 |
+| Background Service Worker | `background.js` | 截图调度、任务持久化、消息转发和错误恢复。 |
+| Content Script | `content.js` | 隐藏页面 UI、滚动到底、恢复页面和展示预览浮层。 |
+| Offscreen OCR | `offscreen.html`、`offscreen.js` | 本地 Tesseract OCR、逐屏释放截图和累计文本拼接。 |
+| 拼接算法 | `text-stitch.js` | Levenshtein 模糊接缝匹配和断层降级标记。 |
+
+当前自动化验证结果：
+
+```text
+Jest:       4 suites passed, 16 tests passed
+Playwright: 2 E2E tests passed
+```
+
+Playwright E2E 已验证：
+
+- MV3 service worker 调度截图；
+- 页面滚动到底并恢复原始状态；
+- offscreen 页面加载本地 `chi_sim` 中文模型和 WASM core；
+- 模拟 OCR 文本的去重拼接；
+- popup 展示持久化结果。
+
+尚需人工验证：真实微信读书页面完整章节 OCR、超长章节性能和 OCR 准确率。
+
+---
+
+以下为旧方案原始排查记录。
 
 ## 1. 项目目标
 

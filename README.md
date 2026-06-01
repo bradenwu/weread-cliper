@@ -79,6 +79,15 @@ E2E 会启动 Playwright Chromium，加载临时测试扩展，通过模拟 OCR 
 MV3 service worker、`captureVisibleTab`、offscreen 页面、滚动恢复和 popup 展示链路；
 同时实际初始化一次本地中文模型和 WASM core，验证离线资产可以在 MV3 CSP 下加载。
 
+## 文档索引
+
+| 文档 | 用途 |
+| --- | --- |
+| [`README.md`](README.md) | 面向用户的安装、使用和开发入口。 |
+| [`AGENTS.md`](AGENTS.md) | 当前工程架构、约束和测试要求。 |
+| [`OCR_REFACTOR_LOG.md`](OCR_REFACTOR_LOG.md) | 2026-06-01 OCR 重构执行记录、测试演进和问题修复。 |
+| [`debug_log.md`](debug_log.md) | 2026-03-29 旧 DOM、运行态和网络 hook 方案的归档日志。 |
+
 ## 注意事项
 
 - 扩展仅适用于 `https://weread.qq.com/web/reader/*`。
