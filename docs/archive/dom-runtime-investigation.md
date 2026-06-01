@@ -8,15 +8,24 @@
 
 归档时间：2026-06-01
 
+关联文档：
+
+- [`../README.md`](../README.md)：文档中心；
+- [`../prd.md`](../prd.md)：当前产品需求；
+- [`../technical-design.md`](../technical-design.md)：当前技术设计；
+- [`../implementation-log.md`](../implementation-log.md)：OCR 重构实施记录。
+
 ## 0. 当前状态索引（2026-06-01）
 
 当前实现不再使用本文中的正文 DOM 提取、Vue store 扫描、meta 摘要兜底或网络响应 hook。
 
 请优先阅读：
 
-- `README.md`：当前用户能力、安装和使用方法；
-- `AGENTS.md`：当前工程契约、模块边界和测试要求；
-- `OCR_REFACTOR_LOG.md`：从旧方案迁移到本地 OCR 架构的执行记录。
+- `../../README.md`：当前用户能力、安装和使用方法；
+- `../../AGENTS.md`：当前工程契约、模块边界和测试要求；
+- `../prd.md`：当前产品需求和验收标准；
+- `../technical-design.md`：当前技术设计；
+- `../implementation-log.md`：从旧方案迁移到本地 OCR 架构的执行记录。
 
 当前 OCR 架构：
 

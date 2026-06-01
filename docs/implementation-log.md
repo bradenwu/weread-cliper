@@ -2,12 +2,20 @@
 
 更新时间：2026-06-01
 
+关联文档：
+
+- [`README.md`](README.md)：文档中心；
+- [`prd.md`](prd.md)：产品需求；
+- [`technical-design.md`](technical-design.md)：当前技术设计；
+- [`archive/dom-runtime-investigation.md`](archive/dom-runtime-investigation.md)：旧方案归档。
+
 ## 1. 文档用途
 
 本文记录 WeRead Clipper 从“DOM、运行态对象和网络响应探测”迁移到“自动滚动截图 +
 本地 OCR + 模糊去重拼接”方案的完整实施过程，方便后续查询设计依据、测试方法和已解决问题。
 
-旧方案的实验历史保留在 `debug_log.md`。当前工程契约以 `AGENTS.md` 为准。
+旧方案的实验历史保留在 `archive/dom-runtime-investigation.md`。当前工程契约以根目录
+`AGENTS.md` 为准。
 
 ## 2. 重构背景
 
@@ -105,7 +113,7 @@ script-src 'self' 'wasm-unsafe-eval'; object-src 'self'
 安全限制：
 
 - 最多处理 `80` 屏，避免触底判断失效时无限循环；
-- 每次截图前检查目标标签页仍在当前窗口前台；
+- 每次截图前检查目标标签页及其 Chrome 窗口仍在前台；
 - 任务状态持续写入 `chrome.storage.local`。
 
 ### 4.3 Content Script 页面控制
@@ -375,3 +383,24 @@ npm run test:all
 ```
 
 本轮未自动执行 `npm audit fix`，因为它可能引入依赖升级风险。后续应单独评估。
+
+## 10. PR #1 Review 修复
+
+根据 PR #1 的 review comment，补充了三类异常路径：
+
+1. 新 service worker 读取到遗留 `running` 状态时，尝试向原标签页发送
+   `RESTORE_CAPTURE`，重置 OCR 会话，并将任务标记为失败，避免永久阻塞重新提取。
+2. 将 `PREPARE_CAPTURE`、任务信息持久化和 `OCR_START` 纳入同一个 `try/finally`，
+   保证 OCR 会话初始化失败时仍恢复页面。
+3. 每次截图前同时检查目标标签页和原 Chrome 窗口是否位于前台，避免其他窗口抢占焦点后
+   截取错误内容。
+
+新增 `tests/background.test.js` 回归用例，覆盖中断任务恢复、OCR 初始化失败清理和窗口失焦
+中止截图。
+
+验证结果：
+
+```text
+Jest:       4 suites passed, 19 tests passed
+Playwright: 2 E2E tests passed
+```

@@ -31,24 +31,16 @@
 1. 在 Chrome 中打开 [微信读书网页版](https://weread.qq.com/web/reader/) 的章节阅读页。
 2. 点击工具栏中的 WeRead Clipper 图标。
 3. 点击「开始提取当前章节」。
-4. 提取期间保持微信读书标签页位于当前窗口前台。
+4. 提取期间保持微信读书标签页及其 Chrome 窗口位于前台。
 5. 完成后复制、预览或导出 TXT。
 
 ## 架构
 
-| 模块 | 文件 | 职责 |
-| --- | --- | --- |
-| Popup | `popup.html`、`popup.js` | 发起任务、展示进度和结果、复制与导出。 |
-| Service Worker | `background.js` | 调度截图、转发 OCR 请求、持久化任务状态。 |
-| Content Script | `content.js`、`content.css` | 隐藏浮层、定位滚动容器、逐屏滚动、恢复页面、展示预览。 |
-| Offscreen OCR | `offscreen.html`、`offscreen.js` | 运行 Tesseract.js Worker，串行识别截图并释放图片内存。 |
-| 拼接算法 | `text-stitch.js` | 模糊重叠匹配、去重拼接和断层降级标记。 |
-| 离线资产 | `vendor/tesseract/` | 浏览器脚本、WASM core 和简体中文模型。 |
+扩展由 Popup、Background Service Worker、Content Script、Offscreen OCR 和文本拼接算法
+组成。详细模块职责、消息协议和异常处理见
+[`docs/technical-design.md`](docs/technical-design.md)。
 
 ## 开发与测试
-
-本次 OCR 架构重构的执行过程、测试演进和踩坑记录见
-[`OCR_REFACTOR_LOG.md`](OCR_REFACTOR_LOG.md)。
 
 安装依赖：
 
@@ -83,10 +75,11 @@ MV3 service worker、`captureVisibleTab`、offscreen 页面、滚动恢复和 po
 
 | 文档 | 用途 |
 | --- | --- |
-| [`README.md`](README.md) | 面向用户的安装、使用和开发入口。 |
-| [`AGENTS.md`](AGENTS.md) | 当前工程架构、约束和测试要求。 |
-| [`OCR_REFACTOR_LOG.md`](OCR_REFACTOR_LOG.md) | 2026-06-01 OCR 重构执行记录、测试演进和问题修复。 |
-| [`debug_log.md`](debug_log.md) | 2026-03-29 旧 DOM、运行态和网络 hook 方案的归档日志。 |
+| [`docs/README.md`](docs/README.md) | 文档中心和推荐阅读顺序。 |
+| [`docs/prd.md`](docs/prd.md) | 产品需求、边界和验收标准。 |
+| [`docs/technical-design.md`](docs/technical-design.md) | 架构设计、消息协议、算法和测试策略。 |
+| [`docs/implementation-log.md`](docs/implementation-log.md) | 2026-06-01 OCR 重构执行记录。 |
+| [`docs/archive/dom-runtime-investigation.md`](docs/archive/dom-runtime-investigation.md) | 2026-03-29 旧 DOM、运行态和网络 hook 方案归档。 |
 
 ## 注意事项
 

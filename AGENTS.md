@@ -22,6 +22,7 @@ OCR 运行资产，包括 `chi_sim` 简体中文模型。
 | `popup.html`、`popup.js` | 用户控制面板：启动任务、查询进度、展示结果、复制、预览、导出 TXT。 |
 | `vendor/tesseract/` | Tesseract.js、worker、四种 WASM core 包装文件和 `chi_sim.traineddata.gz`。 |
 | `tests/` | Jest 单元测试和 Playwright 扩展 E2E。 |
+| `docs/` | 产品需求、技术设计、实施日志和旧方案归档。 |
 
 ## 工作流
 
@@ -46,8 +47,9 @@ OCR 运行资产，包括 `chi_sim` 简体中文模型。
 
 - 截图必须串行处理。不要在内存中累计保存整章 Base64 图片。
 - `background.js` 当前最多处理 `80` 屏，防止滚动容器判断失效后无限循环。
-- 提取期间目标微信读书标签页必须保持在当前窗口前台，否则截图结果不可信，应中止任务。
+- 提取期间目标微信读书标签页及其 Chrome 窗口必须保持在前台，否则截图结果不可信，应中止任务。
 - 无论成功还是失败，都必须执行 `RESTORE_CAPTURE`。
+- 新 service worker 读取到遗留 `running` 状态时，应尝试恢复原页面、重置 OCR 会话并标记任务失败，允许用户重新开始。
 - Popup 和 offscreen 页面禁止内联 JavaScript，遵循 MV3 CSP。
 - Tesseract worker、WASM core 和语言包必须从扩展本地路径加载，禁止运行时依赖 CDN。
 - 浮层文本写入 `innerHTML` 前必须转义；关闭浮层时必须移除 `Escape` 键监听器。
@@ -83,6 +85,6 @@ E2E 使用测试页面和模拟 OCR 文本验证稳定的拼接结果，并额�
 
 ## 文档维护
 
-用户行为变化时更新 `README.md`。架构或测试约束变化时更新 `AGENTS.md`。
-`debug_log.md` 保存旧方案排查历史，不代表当前实现。`OCR_REFACTOR_LOG.md` 保存从旧方案
-迁移到本地 OCR 架构的执行记录、测试演进和已修复问题。
+用户行为变化时更新 `README.md` 和 `docs/prd.md`。架构或接口变化时更新
+`docs/technical-design.md`。重要实施、排障和验证完成后更新 `docs/implementation-log.md`。
+`docs/archive/dom-runtime-investigation.md` 保存旧方案排查历史，不代表当前实现。

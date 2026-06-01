@@ -37,6 +37,9 @@ describe('background service worker 调度', () => {
         },
       },
       offscreen: { createDocument: jest.fn().mockResolvedValue(undefined) },
+      windows: {
+        get: jest.fn().mockResolvedValue({ id: 3, focused: true }),
+      },
       tabs: {
         query: jest.fn().mockResolvedValue([{
           id: 7,
@@ -89,5 +92,51 @@ describe('background service worker 调度', () => {
     const result = await dispatch({ type: 'START_EXTRACTION' });
     expect(result).toEqual({ success: false, error: '请先打开微信读书章节阅读页' });
     expect(chrome.tabs.captureVisibleTab).not.toHaveBeenCalled();
+  });
+
+  test('service worker 重启后恢复中断任务并允许重新开始', async () => {
+    storedTask = {
+      status: 'running',
+      phase: 'recognizing',
+      tabId: 7,
+      windowId: 3,
+      text: '',
+    };
+
+    const status = await dispatch({ type: 'GET_TASK_STATUS' });
+    expect(status.task.status).toBe('failed');
+    expect(status.task.error).toContain('检测到中断的提取任务');
+    expect(pageMessages).toEqual(['RESTORE_CAPTURE']);
+    expect(ocrMessages.map((message) => message.type)).toEqual(['OCR_RESET']);
+
+    const restarted = await dispatch({ type: 'START_EXTRACTION' });
+    expect(restarted.success).toBe(true);
+    await waitForStatus('completed');
+  });
+
+  test('OCR 会话初始化失败时仍恢复页面', async () => {
+    chrome.runtime.sendMessage.mockImplementation(async (message) => {
+      if (message.target !== 'offscreen') return { success: true };
+      ocrMessages.push(message);
+      if (message.type === 'OCR_START') return { success: false, error: '初始化失败' };
+      return { success: true };
+    });
+
+    const started = await dispatch({ type: 'START_EXTRACTION' });
+    expect(started.success).toBe(true);
+    const task = await waitForStatus('failed');
+    expect(task.error).toBe('初始化失败');
+    expect(pageMessages).toEqual(['PREPARE_CAPTURE', 'RESTORE_CAPTURE']);
+  });
+
+  test('原窗口失去焦点时中止截图并恢复页面', async () => {
+    chrome.windows.get.mockResolvedValue({ id: 3, focused: false });
+
+    const started = await dispatch({ type: 'START_EXTRACTION' });
+    expect(started.success).toBe(true);
+    const task = await waitForStatus('failed');
+    expect(task.error).toContain('保持微信读书标签页及其 Chrome 窗口位于前台');
+    expect(chrome.tabs.captureVisibleTab).not.toHaveBeenCalled();
+    expect(pageMessages).toEqual(['PREPARE_CAPTURE', 'RESTORE_CAPTURE']);
   });
 });

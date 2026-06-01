@@ -25,6 +25,8 @@ function defaultTask() {
     chapter: '',
     degradedJoins: 0,
     error: '',
+    tabId: null,
+    windowId: null,
     updatedAt: Date.now(),
   };
 }
@@ -40,7 +42,26 @@ async function getTask() {
   if (activeTask) return activeTask;
   const stored = await chrome.storage.local.get(TASK_KEY);
   activeTask = stored[TASK_KEY] || defaultTask();
+  if (activeTask.status === 'running') {
+    await recoverOrphanedTask();
+  }
   return activeTask;
+}
+
+async function recoverOrphanedTask() {
+  const { tabId } = activeTask;
+  if (tabId) {
+    await chrome.tabs.get(tabId)
+      .then(() => sendToPage(tabId, { type: 'RESTORE_CAPTURE' }))
+      .catch(() => {});
+  }
+  await chrome.runtime.sendMessage({ target: 'offscreen', type: 'OCR_RESET' }).catch(() => {});
+  await saveTask({
+    status: 'failed',
+    phase: 'failed',
+    message: '上次提取任务已中断',
+    error: '检测到中断的提取任务，页面状态已尝试恢复，请重新开始。',
+  });
 }
 
 async function ensureOffscreenDocument() {
@@ -77,9 +98,12 @@ async function sendToPage(tabId, message) {
 }
 
 async function assertTargetTab(tabId, windowId) {
-  const tab = await chrome.tabs.get(tabId);
-  if (!tab.active || tab.windowId !== windowId) {
-    throw new Error('提取期间请保持微信读书标签页位于当前窗口前台');
+  const [tab, window] = await Promise.all([
+    chrome.tabs.get(tabId),
+    chrome.windows.get(windowId),
+  ]);
+  if (!tab.active || tab.windowId !== windowId || !window.focused) {
+    throw new Error('提取期间请保持微信读书标签页及其 Chrome 窗口位于前台');
   }
 }
 
@@ -99,13 +123,13 @@ async function captureChapter(tab, options = {}) {
     ocrProgress: 0,
   });
 
-  const page = await sendToPage(tabId, { type: 'PREPARE_CAPTURE' });
-  await saveTask({ book: page.book, chapter: page.chapter });
-  await sendToOffscreen({ type: 'OCR_START' });
-
   let pageNumber = 0;
-  let hitBottom = page.atBottom;
   try {
+    const page = await sendToPage(tabId, { type: 'PREPARE_CAPTURE' });
+    await saveTask({ book: page.book, chapter: page.chapter });
+    await sendToOffscreen({ type: 'OCR_START' });
+
+    let hitBottom = page.atBottom;
     while (pageNumber < MAX_SCREENS) {
       pageNumber += 1;
       await assertTargetTab(tabId, windowId);
@@ -181,6 +205,8 @@ async function startExtraction(options = {}) {
     message: '任务已启动',
     text: '',
     error: '',
+    tabId: tab.id,
+    windowId: tab.windowId,
   });
 
   captureChapter(tab, options).catch(async (error) => {
