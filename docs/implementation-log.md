@@ -404,3 +404,37 @@ npm run test:all
 Jest:       4 suites passed, 19 tests passed
 Playwright: 2 E2E tests passed
 ```
+
+## 11. 点击提取无响应修复
+
+时间：2026-06-03 23:39 CST
+
+现象：在已打开的微信读书章节页点击 popup 的“开始提取当前章节”后，界面仍显示
+“等待开始提取”，看起来没有任何响应。
+
+根因：
+
+1. 扩展重新加载后，当前已打开的微信读书标签页没有可用的新版 content script。
+2. 后台向页面发送 `PREPARE_CAPTURE` 时收到
+   `Could not establish connection. Receiving end does not exist.`。
+3. popup 曾把该失败状态当作瞬时连接错误展示为 idle，掩盖了真实错误。
+
+修复：
+
+- `background.js` 在页面没有接收端时，自动注入 `content.css` 和 `content.js` 后重试页面消息；
+- `manifest.json` 增加 `scripting` 权限，用于 MV3 程序化注入；
+- `content.js` 使用当前注入 token 过滤旧监听器，避免重复注入后多个监听器同时滚动页面；
+- `popup.js` 只忽略查询任务状态时 service worker 启动瞬间的连接失败，不再隐藏已持久化的任务失败。
+
+新增回归测试：
+
+- content script 缺失时自动注入并重试；
+- 重复注入后只有最新 content script 监听器响应；
+- popup 展示已保存的页面连接失败，不伪装成等待状态。
+
+验证结果：
+
+```text
+Jest:       5 suites passed, 23 tests passed
+Playwright: 2 E2E tests passed
+```

@@ -6,6 +6,8 @@ describe('content script 页面控制器', () => {
     document.head.innerHTML = '';
     document.body.innerHTML = '';
     listener = null;
+    delete window.__wereadClipperContentForTests;
+    delete window.__wereadClipperActiveToken;
     global.chrome = {
       runtime: {
         onMessage: {
@@ -70,5 +72,22 @@ describe('content script 页面控制器', () => {
     await dispatch({ type: 'RESTORE_CAPTURE' });
     expect(document.getElementById('toolbar').style.visibility).toBe('visible');
     expect(scroller.scrollTop).toBe(300);
+  });
+
+  test('重复注入后只有最新监听器响应页面控制消息', async () => {
+    const firstListener = listener;
+    jest.resetModules();
+    require('../content.js');
+    const secondListener = listener;
+    const staleResponse = jest.fn();
+
+    expect(firstListener({ type: 'SHOW_PREVIEW', text: '旧监听器' }, {}, staleResponse)).toBe(false);
+    expect(staleResponse).not.toHaveBeenCalled();
+
+    const result = await new Promise((resolve) => {
+      secondListener({ type: 'SHOW_PREVIEW', text: '新监听器' }, {}, resolve);
+    });
+    expect(result.success).toBe(true);
+    expect(document.getElementById('weread-cliper-highlight').textContent).toContain('新监听器');
   });
 });

@@ -1,6 +1,9 @@
 (function () {
   'use strict';
 
+  const contentToken = `${Date.now()}:${Math.random()}`;
+  window.__wereadClipperActiveToken = contentToken;
+
   const OVERLAY_ID = 'weread-cliper-highlight';
   const HIDDEN_ATTR = 'data-weread-cliper-hidden';
   const UI_SELECTORS = [
@@ -213,6 +216,8 @@
   }
 
   chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    if (window.__wereadClipperActiveToken !== contentToken) return false;
+
     (async () => {
       if (request.type === 'PREPARE_CAPTURE') sendResponse(await prepareCapture());
       if (request.type === 'SCROLL_NEXT') sendResponse(await scrollNext());

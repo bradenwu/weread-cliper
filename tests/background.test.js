@@ -37,8 +37,12 @@ describe('background service worker 调度', () => {
         },
       },
       offscreen: { createDocument: jest.fn().mockResolvedValue(undefined) },
+      scripting: {
+        insertCSS: jest.fn().mockResolvedValue(undefined),
+        executeScript: jest.fn().mockResolvedValue([{ result: undefined }]),
+      },
       windows: {
-        get: jest.fn().mockResolvedValue({ id: 3, focused: true }),
+        getLastFocused: jest.fn().mockResolvedValue({ id: 3 }),
       },
       tabs: {
         query: jest.fn().mockResolvedValue([{
@@ -129,8 +133,40 @@ describe('background service worker 调度', () => {
     expect(pageMessages).toEqual(['PREPARE_CAPTURE', 'RESTORE_CAPTURE']);
   });
 
+  test('页面尚未注入 content script 时自动注入后重试', async () => {
+    let prepareAttempts = 0;
+    chrome.tabs.sendMessage.mockImplementation(async (tabId, message) => {
+      if (message.type === 'PREPARE_CAPTURE') {
+        prepareAttempts += 1;
+        if (prepareAttempts === 1) {
+          throw new Error('Could not establish connection. Receiving end does not exist.');
+        }
+        pageMessages.push(message.type);
+        return { success: true, book: '测试书籍', chapter: '测试章节', atBottom: true };
+      }
+
+      pageMessages.push(message.type);
+      return { success: true };
+    });
+
+    const started = await dispatch({ type: 'START_EXTRACTION' });
+    expect(started.success).toBe(true);
+
+    const task = await waitForStatus('completed');
+    expect(task.text).toBe('拼接后的章节正文');
+    expect(chrome.scripting.insertCSS).toHaveBeenCalledWith({
+      target: { tabId: 7 },
+      files: ['content.css'],
+    });
+    expect(chrome.scripting.executeScript).toHaveBeenCalledWith({
+      target: { tabId: 7 },
+      files: ['content.js'],
+    });
+    expect(pageMessages).toEqual(['PREPARE_CAPTURE', 'RESTORE_CAPTURE']);
+  });
+
   test('原窗口失去焦点时中止截图并恢复页面', async () => {
-    chrome.windows.get.mockResolvedValue({ id: 3, focused: false });
+    chrome.windows.getLastFocused.mockResolvedValue({ id: 99 });
 
     const started = await dispatch({ type: 'START_EXTRACTION' });
     expect(started.success).toBe(true);

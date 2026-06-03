@@ -51,7 +51,10 @@
       const response = await request({ type: 'GET_TASK_STATUS' });
       render(response.task);
     } catch (error) {
-      render({ status: 'failed', error: error.message });
+      // 服务工作者启动期间的瞬时连接失败，等待下次轮询即可
+      if (!error.message.includes('Receiving end does not exist')) {
+        render({ status: 'failed', error: error.message });
+      }
     }
   }
 
