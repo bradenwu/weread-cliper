@@ -47,4 +47,9 @@ describe('OCR 文本拼接算法', () => {
   test('清理 OCR 多余空白但保留段落', () => {
     expect(normalizeOcrText(' 第一行  \n\n\n 第二行 \r\n')).toBe('第一行\n\n 第二行');
   });
+
+  test('移除中文字符之间的 OCR 空格', () => {
+    expect(normalizeOcrText('这 是 一 段 文 字')).toBe('这是一段文字');
+    expect(normalizeOcrText('第 一 行\n第 二 行')).toBe('第一行\n第二行');
+  });
 });
