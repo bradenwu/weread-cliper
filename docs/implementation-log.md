@@ -438,3 +438,24 @@ Playwright: 2 E2E tests passed
 Jest:       5 suites passed, 23 tests passed
 Playwright: 2 E2E tests passed
 ```
+
+## 12. PR #5 Review 焦点检查修复
+
+时间：2026-06-03 23:50 CST
+
+自动 review 指出 `chrome.windows.getLastFocused()` 只能判断最近获得焦点的 Chrome 窗口，
+不能确认目标 Chrome 窗口当前仍处于系统前台。用户切换到其他 macOS 应用时，
+`getLastFocused().id` 仍可能等于目标窗口 ID，但该窗口的 `focused` 已经为 `false`。
+
+修复：
+
+- `background.js` 改为查询目标窗口 `chrome.windows.get(windowId)`；
+- 截图前同时检查目标 tab active、tab 所属窗口和目标窗口 `focused`；
+- `tests/background.test.js` 使用 `focused: false` 覆盖原窗口失去焦点时中止截图并恢复页面。
+
+验证结果：
+
+```text
+Jest:       5 suites passed, 23 tests passed
+Playwright: 2 E2E tests passed
+```

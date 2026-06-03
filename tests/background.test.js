@@ -42,7 +42,7 @@ describe('background service worker 调度', () => {
         executeScript: jest.fn().mockResolvedValue([{ result: undefined }]),
       },
       windows: {
-        getLastFocused: jest.fn().mockResolvedValue({ id: 3 }),
+        get: jest.fn().mockResolvedValue({ id: 3, focused: true }),
       },
       tabs: {
         query: jest.fn().mockResolvedValue([{
@@ -166,7 +166,7 @@ describe('background service worker 调度', () => {
   });
 
   test('原窗口失去焦点时中止截图并恢复页面', async () => {
-    chrome.windows.getLastFocused.mockResolvedValue({ id: 99 });
+    chrome.windows.get.mockResolvedValue({ id: 3, focused: false });
 
     const started = await dispatch({ type: 'START_EXTRACTION' });
     expect(started.success).toBe(true);

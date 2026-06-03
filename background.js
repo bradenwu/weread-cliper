@@ -132,11 +132,11 @@ async function injectContentScript(tabId) {
 }
 
 async function assertTargetTab(tabId, windowId) {
-  const [tab, lastFocused] = await Promise.all([
+  const [tab, targetWindow] = await Promise.all([
     chrome.tabs.get(tabId),
-    chrome.windows.getLastFocused({ windowTypes: ['normal'] }),
+    chrome.windows.get(windowId),
   ]);
-  if (!tab.active || tab.windowId !== windowId || lastFocused.id !== windowId) {
+  if (!tab.active || tab.windowId !== windowId || !targetWindow.focused) {
     throw new Error('提取期间请保持微信读书标签页及其 Chrome 窗口位于前台');
   }
 }
