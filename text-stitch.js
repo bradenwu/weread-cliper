@@ -21,6 +21,7 @@
       .replace(/\r/g, '')
       .replace(/[ \t]+\n/g, '\n')
       .replace(/\n{3,}/g, '\n\n')
+      .replace(/(?<=[㐀-鿿])[ \t]+(?=[㐀-鿿])/g, '')
       .trim();
   }
 
