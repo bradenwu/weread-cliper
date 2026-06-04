@@ -50,6 +50,16 @@ describe('OCR 文本拼接算法', () => {
 
   test('移除中文字符之间的 OCR 空格', () => {
     expect(normalizeOcrText('这 是 一 段 文 字')).toBe('这是一段文字');
-    expect(normalizeOcrText('第 一 行\n第 二 行')).toBe('第一行\n第二行');
+    expect(normalizeOcrText('第 一 行\n第 二 行')).toBe('第一行第二行');
+  });
+
+  test('合并段落内的软换行，保留空行分段', () => {
+    expect(
+      normalizeOcrText('研究人员发现\n智商提高的迹象。\n\n第二段开始\n继续内容')
+    ).toBe('研究人员发现智商提高的迹象。\n\n第二段开始继续内容');
+  });
+
+  test('保留段首缩进，不误并真正的分段', () => {
+    expect(normalizeOcrText('上一段结尾。\n　　新段落开头')).toBe('上一段结尾。\n　　新段落开头');
   });
 });
