@@ -140,12 +140,11 @@ async function injectContentScript(tabId) {
 }
 
 async function assertTargetTab(tabId, windowId) {
-  const [tab, targetWindow] = await Promise.all([
-    chrome.tabs.get(tabId),
-    chrome.windows.get(windowId),
-  ]);
-  if (!tab.active || tab.windowId !== windowId || !targetWindow.focused) {
-    throw new Error('提取期间请保持微信读书标签页及其 Chrome 窗口位于前台');
+  // captureVisibleTab 传入明确的 windowId，窗口无需位于系统前台即可截图，
+  // 因此只校验目标标签页仍是该窗口的活动页，避免误截其他标签页内容。
+  const tab = await chrome.tabs.get(tabId);
+  if (!tab.active || tab.windowId !== windowId) {
+    throw new Error('提取期间请保持微信读书标签页处于当前窗口的活动状态');
   }
 }
 

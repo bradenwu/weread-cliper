@@ -1,6 +1,8 @@
 (function () {
   'use strict';
 
+  const NO_RECEIVER_ERROR = 'Receiving end does not exist';
+
   const elements = {
     status: document.getElementById('status'),
     progress: document.getElementById('progress'),
@@ -52,7 +54,7 @@
       render(response.task);
     } catch (error) {
       // 服务工作者启动期间的瞬时连接失败，等待下次轮询即可
-      if (!error.message.includes('Receiving end does not exist')) {
+      if (!error.message.includes(NO_RECEIVER_ERROR)) {
         render({ status: 'failed', error: error.message });
       }
     }

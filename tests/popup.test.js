@@ -33,6 +33,10 @@ describe('popup 用户界面', () => {
       tabs: { query: jest.fn(), sendMessage: jest.fn() },
       downloads: { download: jest.fn() },
     };
+    Object.defineProperty(window, 'close', {
+      configurable: true,
+      value: jest.fn(),
+    });
   });
 
   afterEach(() => {
@@ -48,5 +52,29 @@ describe('popup 用户界面', () => {
     expect(document.getElementById('status').textContent)
       .toBe('Could not establish connection. Receiving end does not exist.');
     expect(document.getElementById('status').className).toContain('error');
+  });
+
+  test('启动成功后保持 popup 打开以实时展示进度', async () => {
+    chrome.runtime.sendMessage.mockImplementation(async (message) => {
+      if (message.type === 'GET_TASK_STATUS') {
+        return { success: true, task: { status: 'idle', text: '', message: '等待开始提取' } };
+      }
+      if (message.type === 'START_EXTRACTION') {
+        return { success: true, task: { status: 'running', text: '', message: '任务已启动' } };
+      }
+      return { success: true };
+    });
+
+    require('../popup.js');
+    await Promise.resolve();
+    await Promise.resolve();
+
+    document.getElementById('start').click();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    jest.runOnlyPendingTimers();
+    expect(window.close).not.toHaveBeenCalled();
+    expect(document.getElementById('status').textContent).toBe('任务已启动');
   });
 });

@@ -41,9 +41,6 @@ describe('background service worker 调度', () => {
         insertCSS: jest.fn().mockResolvedValue(undefined),
         executeScript: jest.fn().mockResolvedValue([{ result: undefined }]),
       },
-      windows: {
-        get: jest.fn().mockResolvedValue({ id: 3, focused: true }),
-      },
       tabs: {
         query: jest.fn().mockResolvedValue([{
           id: 7,
@@ -72,9 +69,9 @@ describe('background service worker 调度', () => {
   }
 
   async function waitForStatus(expected) {
-    for (let index = 0; index < 30; index += 1) {
+    for (let index = 0; index < 100; index += 1) {
       if (storedTask?.status === expected) return storedTask;
-      await new Promise((resolve) => setTimeout(resolve, 0));
+      await new Promise((resolve) => setTimeout(resolve, 20));
     }
     throw new Error(`任务未进入状态: ${expected}`);
   }
@@ -165,13 +162,21 @@ describe('background service worker 调度', () => {
     expect(pageMessages).toEqual(['PREPARE_CAPTURE', 'RESTORE_CAPTURE']);
   });
 
-  test('原窗口失去焦点时中止截图并恢复页面', async () => {
-    chrome.windows.get.mockResolvedValue({ id: 3, focused: false });
+  test('窗口不在系统前台也照常截图，无需保持窗口聚焦', async () => {
+    const started = await dispatch({ type: 'START_EXTRACTION' });
+    expect(started.success).toBe(true);
+    const task = await waitForStatus('completed');
+    expect(task.text).toBe('拼接后的章节正文');
+    expect(chrome.tabs.captureVisibleTab).toHaveBeenCalledWith(3, { format: 'png' });
+  });
+
+  test('目标标签页被切换为非活动时中止截图并恢复页面', async () => {
+    chrome.tabs.get.mockResolvedValue({ id: 7, windowId: 3, active: false });
 
     const started = await dispatch({ type: 'START_EXTRACTION' });
     expect(started.success).toBe(true);
     const task = await waitForStatus('failed');
-    expect(task.error).toContain('保持微信读书标签页及其 Chrome 窗口位于前台');
+    expect(task.error).toContain('保持微信读书标签页处于当前窗口的活动状态');
     expect(chrome.tabs.captureVisibleTab).not.toHaveBeenCalled();
     expect(pageMessages).toEqual(['PREPARE_CAPTURE', 'RESTORE_CAPTURE']);
   });

@@ -459,3 +459,71 @@ Playwright: 2 E2E tests passed
 Jest:       5 suites passed, 23 tests passed
 Playwright: 2 E2E tests passed
 ```
+
+## 13. Popup 启动后前景检查误判修复
+
+时间：2026-06-04 CST
+
+现象：点击“开始提取当前章节”后，popup 显示
+“提取期间请保持微信读书标签页及其 Chrome 窗口位于前台”。
+
+根因：
+
+1. PR #5 按 review 改为检查目标 Chrome 窗口的 `focused` 状态，这是截图安全所必需的；
+2. 但用户从扩展 popup 点击启动时，popup 自身会短暂占用前台；
+3. 后台在第一屏截图前立即执行焦点检查，可能在 popup 关闭/焦点归还前读到
+   `targetWindow.focused === false`，从而把合法启动路径误判为窗口失焦。
+
+修复：
+
+- popup 收到 `START_EXTRACTION` 成功响应后自动关闭，把前台还给阅读页；
+- 后台截图前的前景检查增加短暂重试，只在目标 tab active、窗口 ID 匹配且目标窗口
+  `focused` 后才截图；
+- 如果目标窗口持续不在前台，仍会失败并跳过截图，保留截图安全约束。
+
+新增回归测试：
+
+- 启动后目标窗口短暂失焦，恢复后继续截图；
+- 原窗口持续失焦时中止截图并恢复页面；
+- popup 启动成功后自动关闭。
+
+验证结果：
+
+```text
+Jest:       5 suites passed, 25 tests passed
+Playwright: 2 E2E tests passed
+```
+
+## 14. 取消弹窗自动关闭，放宽窗口焦点约束
+
+时间：2026-06-04 CST
+
+现象：第 13 项让 popup 启动后自动关闭，导致提取过程中完全看不到 WeRead Clipper
+弹窗，无法实时查看进度和结果。
+
+根因：
+
+1. 第 13 项为绕开“弹窗抢占系统前台”，选择启动后关闭 popup；
+2. 但 `chrome.tabs.captureVisibleTab(windowId, ...)` 传入了明确的 `windowId`，
+   截取的是该窗口活动标签页的可见内容，并不要求该窗口位于系统最前；
+3. 因此窗口级 `focused` 检查本身过严，是它逼出了“关闭 popup”这个副作用。
+
+修复：
+
+- `background.js` 的 `assertTargetTab` 移除窗口 `focused` 检查与重试逻辑，
+  仅校验目标标签页仍是该窗口的活动页（防止误截其他标签页）；
+- `popup.js` 取消启动成功后的 `window.close()`，弹窗保持打开实时展示进度；
+- 同步更新 README、PRD 中关于“窗口需位于前台”的描述。
+
+回归测试调整：
+
+- 新增：窗口不在系统前台也照常截图；
+- 改写：目标标签页被切换为非活动时中止截图并恢复页面；
+- 改写：启动成功后保持 popup 打开以实时展示进度。
+
+验证结果：
+
+```text
+Jest:       5 suites passed, 25 tests passed
+Playwright: 2 E2E tests passed
+```
