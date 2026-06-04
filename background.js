@@ -104,16 +104,24 @@ async function sendToOffscreen(message) {
 }
 
 async function sendToPage(tabId, message) {
-  let response;
   try {
-    response = await chrome.tabs.sendMessage(tabId, message);
+    const response = await chrome.tabs.sendMessage(tabId, message);
+    if (!response?.success) throw new Error(response?.error || '页面控制失败');
+    return response;
   } catch (error) {
     if (!error.message.includes(NO_RECEIVER_ERROR)) throw error;
-    await injectContentScript(tabId);
-    response = await chrome.tabs.sendMessage(tabId, message);
   }
-  if (!response?.success) throw new Error(response?.error || '页面控制失败');
-  return response;
+  await injectContentScript(tabId);
+  for (let delay = 50; ; delay *= 2) {
+    await sleep(delay);
+    try {
+      const response = await chrome.tabs.sendMessage(tabId, message);
+      if (!response?.success) throw new Error(response?.error || '页面控制失败');
+      return response;
+    } catch (err) {
+      if (delay >= 400 || !err.message.includes(NO_RECEIVER_ERROR)) throw err;
+    }
+  }
 }
 
 async function injectContentScript(tabId) {
