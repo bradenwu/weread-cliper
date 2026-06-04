@@ -19,9 +19,11 @@
   function normalizeOcrText(text) {
     return String(text || '')
       .replace(/\r/g, '')
-      .replace(/[ \t]+\n/g, '\n')
+      .replace(/(?<=[㐀-鿿。，、；：！？…“”‘’（）【】「」『』])[ \t　]+(?=[㐀-鿿。，、；：！？…“”‘’（）【】「」『』])/g, '')
+      .replace(/[ \t　]+\n/g, '\n')
+      .replace(/\n[ \t]+/g, '\n')
       .replace(/\n{3,}/g, '\n\n')
-      .replace(/(?<=[㐀-鿿])[ \t]+(?=[㐀-鿿])/g, '')
+      .replace(/(?<!\n)\n(?=\S)/g, '')
       .trim();
   }
 
