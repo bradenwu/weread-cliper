@@ -28,6 +28,8 @@
   color: #fff;
   font-size: 14px;
   font-weight: 600;
+  cursor: move;
+  user-select: none;
 }
 
 .weread-cliper-close {

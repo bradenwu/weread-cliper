@@ -53,9 +53,43 @@
     `;
     document.body.appendChild(overlay);
 
+    const header = overlay.querySelector('.weread-cliper-header');
+    let isDragging = false;
+    let startX, startY, startLeft, startTop;
+
+    const onMouseMove = (e) => {
+      if (!isDragging) return;
+      overlay.style.left = `${startLeft + e.clientX - startX}px`;
+      overlay.style.top = `${startTop + e.clientY - startY}px`;
+    };
+
+    const onMouseUp = () => {
+      isDragging = false;
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+    };
+
+    header.addEventListener('mousedown', (e) => {
+      if (e.target.closest('button')) return;
+      const rect = overlay.getBoundingClientRect();
+      overlay.style.left = `${rect.left}px`;
+      overlay.style.top = `${rect.top}px`;
+      overlay.style.transform = 'none';
+      isDragging = true;
+      startX = e.clientX;
+      startY = e.clientY;
+      startLeft = rect.left;
+      startTop = rect.top;
+      e.preventDefault();
+      document.addEventListener('mousemove', onMouseMove);
+      document.addEventListener('mouseup', onMouseUp);
+    });
+
     const close = () => {
       overlay.remove();
       document.removeEventListener('keydown', onKeydown);
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
     };
     const onKeydown = (event) => {
       if (event.key === 'Escape') close();
