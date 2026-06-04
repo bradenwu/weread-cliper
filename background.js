@@ -3,6 +3,7 @@ const CAPTURE_DELAY_MS = 650;
 const TASK_KEY = 'wereadClipperTask';
 const OFFSCREEN_PATH = 'offscreen.html';
 const TEST_MODE = chrome.runtime.getManifest().version_name === 'e2e';
+const NO_RECEIVER_ERROR = 'Receiving end does not exist';
 
 let activeTask = null;
 let creatingOffscreen = null;
@@ -86,24 +87,64 @@ async function ensureOffscreenDocument() {
 
 async function sendToOffscreen(message) {
   await ensureOffscreenDocument();
-  const response = await chrome.runtime.sendMessage({ target: 'offscreen', ...message });
-  if (!response?.success) throw new Error(response?.error || 'OCR 后台处理失败');
-  return response;
+  // offscreen 文档创建后，JS 注册监听器需要短暂时间，遇到连接错误时重试
+  for (let delay = 50; ; delay *= 2) {
+    try {
+      const response = await chrome.runtime.sendMessage({ target: 'offscreen', ...message });
+      if (!response?.success) throw new Error(response?.error || 'OCR 后台处理失败');
+      return response;
+    } catch (error) {
+      if (delay <= 400 && error.message.includes(NO_RECEIVER_ERROR)) {
+        await sleep(delay);
+        continue;
+      }
+      throw error;
+    }
+  }
 }
 
 async function sendToPage(tabId, message) {
-  const response = await chrome.tabs.sendMessage(tabId, message);
-  if (!response?.success) throw new Error(response?.error || '页面控制失败');
-  return response;
+  try {
+    const response = await chrome.tabs.sendMessage(tabId, message);
+    if (!response?.success) throw new Error(response?.error || '页面控制失败');
+    return response;
+  } catch (error) {
+    if (!error.message.includes(NO_RECEIVER_ERROR)) throw error;
+  }
+  await injectContentScript(tabId);
+  for (let delay = 50; ; delay *= 2) {
+    await sleep(delay);
+    try {
+      const response = await chrome.tabs.sendMessage(tabId, message);
+      if (!response?.success) throw new Error(response?.error || '页面控制失败');
+      return response;
+    } catch (err) {
+      if (delay >= 400 || !err.message.includes(NO_RECEIVER_ERROR)) throw err;
+    }
+  }
+}
+
+async function injectContentScript(tabId) {
+  if (!chrome.scripting?.executeScript) {
+    throw new Error('无法注入页面控制脚本，请刷新微信读书页面后重试');
+  }
+
+  await chrome.scripting.insertCSS({
+    target: { tabId },
+    files: ['content.css'],
+  }).catch(() => {});
+  await chrome.scripting.executeScript({
+    target: { tabId },
+    files: ['content.js'],
+  });
 }
 
 async function assertTargetTab(tabId, windowId) {
-  const [tab, window] = await Promise.all([
-    chrome.tabs.get(tabId),
-    chrome.windows.get(windowId),
-  ]);
-  if (!tab.active || tab.windowId !== windowId || !window.focused) {
-    throw new Error('提取期间请保持微信读书标签页及其 Chrome 窗口位于前台');
+  // captureVisibleTab 传入明确的 windowId，窗口无需位于系统前台即可截图，
+  // 因此只校验目标标签页仍是该窗口的活动页，避免误截其他标签页内容。
+  const tab = await chrome.tabs.get(tabId);
+  if (!tab.active || tab.windowId !== windowId) {
+    throw new Error('提取期间请保持微信读书标签页处于当前窗口的活动状态');
   }
 }
 

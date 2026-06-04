@@ -9,6 +9,7 @@
     "clipboardWrite",
     "downloads",
     "offscreen",
+    "scripting",
     "storage",
     "tabs"
   ],
