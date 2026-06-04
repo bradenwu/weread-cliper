@@ -45,7 +45,7 @@ describe('OCR 文本拼接算法', () => {
   });
 
   test('清理 OCR 多余空白但保留段落', () => {
-    expect(normalizeOcrText(' 第一行  \n\n\n 第二行 \r\n')).toBe('第一行\n\n 第二行');
+    expect(normalizeOcrText(' 第一行  \n\n\n 第二行 \r\n')).toBe('第一行\n\n第二行');
   });
 
   test('移除中文字符之间的 OCR 空格', () => {
@@ -82,5 +82,9 @@ describe('OCR 文本拼接算法', () => {
 
   test('合并行尾汉字与下一行数字之间的换行', () => {
     expect(normalizeOcrText('组成智商的智力有两种\n4 岁的孩子')).toBe('组成智商的智力有两种4 岁的孩子');
+  });
+
+  test('行首的半角空格视为 OCR 噪声，不阻止软换行合并', () => {
+    expect(normalizeOcrText('研究人员发现\n 智商提高')).toBe('研究人员发现智商提高');
   });
 });
