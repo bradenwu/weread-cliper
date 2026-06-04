@@ -10,7 +10,7 @@
   'use strict';
 
   const DEFAULT_OPTIONS = {
-    maxOverlap: 150,
+    maxOverlap: 300,
     minOverlap: 10,
     similarityThreshold: 0.85,
     gapMarker: '\n\n[可能存在断层，需人工校对]\n\n',
