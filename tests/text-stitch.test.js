@@ -44,6 +44,53 @@ describe('OCR 文本拼接算法', () => {
     expect(result.text).toContain('第二页没有任何重叠文本');
   });
 
+  // 构造确定性的汉字串：每个字符唯一，便于断言去重
+  function buildHan(count, seed) {
+    let text = '';
+    for (let index = 0; index < count; index += 1) {
+      text += String.fromCharCode(0x4e00 + ((seed + index * 7) % 2000));
+    }
+    return text;
+  }
+
+  test('重叠区远超 maxOverlap（密集页）仍能正确拼接，不产生断层', () => {
+    const shared = buildHan(350, 100);
+    const previous = `前文独有内容${buildHan(120, 1)}${shared}`;
+    const next = `${shared}${buildHan(120, 1500)}后文独有内容`;
+
+    const result = stitchTexts(previous, next);
+
+    expect(result.degraded).toBe(false);
+    expect(result.text).toContain('前文独有内容');
+    expect(result.text).toContain('后文独有内容');
+    // 共享区只应保留一份
+    expect(result.text.split(shared).length - 1).toBe(1);
+  });
+
+  test('末屏几乎整屏重叠（滚动被 clamp）仍能正确拼接', () => {
+    const shared = buildHan(600, 200);
+    const previous = `${buildHan(60, 1)}${shared}`;
+    const next = `${shared}${buildHan(40, 1800)}末屏新增内容`;
+
+    const result = stitchTexts(previous, next);
+
+    expect(result.degraded).toBe(false);
+    expect(result.text).toContain('末屏新增内容');
+    expect(result.text.split(shared).length - 1).toBe(1);
+  });
+
+  test('下一屏顶部有截断噪声行时仍能定位接缝', () => {
+    const shared = buildHan(200, 300);
+    const previous = `${buildHan(80, 1)}${shared}`;
+    // 模拟顶部被截断的半行噪声
+    const next = `噪声残行x9\n${shared}${buildHan(50, 1900)}正文结尾`;
+
+    const result = stitchTexts(previous, next);
+
+    expect(result.degraded).toBe(false);
+    expect(result.text).toContain('正文结尾');
+  });
+
   test('清理 OCR 多余空白但保留段落', () => {
     expect(normalizeOcrText(' 第一行  \n\n\n 第二行 \r\n')).toBe('第一行\n\n第二行');
   });
@@ -82,6 +129,20 @@ describe('OCR 文本拼接算法', () => {
 
   test('合并行尾汉字与下一行数字之间的换行', () => {
     expect(normalizeOcrText('组成智商的智力有两种\n4 岁的孩子')).toBe('组成智商的智力有两种4 岁的孩子');
+  });
+
+  test('中文语境下的半角标点转全角并去除前后空格', () => {
+    expect(
+      normalizeOcrText('对别人来说 , 时间只是一条射线 ; 可对我们来说 , 时间是一个半径可以几何级数增长的管道。')
+    ).toBe('对别人来说，时间只是一条射线；可对我们来说，时间是一个半径可以几何级数增长的管道。');
+    expect(normalizeOcrText('相信科学才是更靠谱、更有效的途径 , 甚至是唯一途径 !')).toBe(
+      '相信科学才是更靠谱、更有效的途径，甚至是唯一途径！'
+    );
+  });
+
+  test('保留数字千分位与英文中的半角标点', () => {
+    expect(normalizeOcrText('总计 1,000 元')).toBe('总计 1,000 元');
+    expect(normalizeOcrText('版本 v1.2.3 已发布')).toBe('版本 v1.2.3 已发布');
   });
 
   test('行首的半角空格视为 OCR 噪声，不阻止软换行合并', () => {
