@@ -10,7 +10,7 @@
   'use strict';
 
   const DEFAULT_OPTIONS = {
-    // 重叠区上限，仅作为超长文本的安全护栏；真实重叠由 next 长度自然限定。
+    // 搜索回溯上限，仅作为超长文本的安全护栏；真实重叠不会超过 next 长度，由其自然限定。
     maxOverlap: 4000,
     minOverlap: 10,
     similarityThreshold: 0.85,
@@ -18,7 +18,9 @@
     anchorLength: 16,
     // 锚点在 next 开头的多个起始偏移，用于跳过顶部被截断的噪声行。
     anchorSkips: [0, 3, 6, 10],
-    // 通过锚点初筛后，最多对多少个候选位置做完整校验，控制最坏耗时。
+    // 校验时比对的最大窗口（中文字符数）：足以区分真接缝与偶然短串，避免对超长重叠做整段 Levenshtein。
+    verifyLength: 64,
+    // 通过锚点初筛后，最多对多少个候选位置做校验，控制最坏耗时。
     maxVerifications: 16,
     gapMarker: '\n\n[可能存在断层，需人工校对]\n\n',
   };
@@ -135,10 +137,13 @@
 
     if (!candidates.length) return { ...NOT_FOUND };
 
-    // \u4f18\u5148\u6821\u9a8c\u951a\u70b9\u76f8\u4f3c\u5ea6\u66f4\u9ad8\u7684\u5019\u9009\uff0c\u63a7\u5236\u6700\u574f\u60c5\u51b5\u4e0b\u7684\u6821\u9a8c\u6b21\u6570\u3002
-    candidates.sort((a, b) => b.anchorScore - a.anchorScore);
+    // \u6821\u9a8c\u987a\u5e8f\uff1a\u5148\u6309\u951a\u70b9\u76f8\u4f3c\u5ea6\uff0c\u518d\u6309\u300c\u8d8a\u9760\u8fd1 previous \u5c3e\u90e8\u8d8a\u4f18\u5148\u300d\u3002
+    // \u6eda\u52a8\u622a\u5c4f\u7684\u771f\u5b9e\u63a5\u7f1d\u5fc5\u7136\u843d\u5728\u7d2f\u8ba1\u6587\u672c\u7684\u5c3e\u90e8\uff0c\u800c\u4e66\u4e2d\u5176\u5b83\u4f4d\u7f6e\u7684\u91cd\u590d\u77ed\u8bed\uff08\u540c\u6837\u53ef\u80fd\u4e0e
+    // \u951a\u70b9\u7b49\u5206\uff09\u5219\u8fdc\u5728\u4e0a\u65b9\uff1b\u9760\u5c3e\u90e8\u4f18\u5148\u53ef\u786e\u4fdd\u771f\u5b9e\u63a5\u7f1d\u5728\u6821\u9a8c\u9884\u7b97\u5185\u88ab\u547d\u4e2d\uff0c\u907f\u514d\u88ab\u524d\u9762\u7684
+    // \u91cd\u590d\u4e32\u5360\u6ee1\u9884\u7b97\u540e\u8bef\u5224\u65ad\u5c42\u3002
+    candidates.sort((a, b) => b.anchorScore - a.anchorScore || b.position - a.position);
 
-    // \u7b2c\u4e8c\u6b65\uff1a\u5bf9\u5019\u9009\u505a\u6574\u6bb5\u91cd\u53e0\u6821\u9a8c\uff0c\u6311\u51fa\u6700\u53ef\u9760\u7684\u63a5\u7f1d\u3002
+    // \u7b2c\u4e8c\u6b65\uff1a\u5bf9\u5019\u9009\u505a\u91cd\u53e0\u6821\u9a8c\uff0c\u6311\u51fa\u6700\u53ef\u9760\u7684\u63a5\u7f1d\u3002
     let best = null;
     const limit = Math.min(candidates.length, config.maxVerifications);
     for (let index = 0; index < limit; index += 1) {
@@ -147,8 +152,10 @@
       const overlapLength = Math.min(previousLength - position, nextLength - skip);
       if (overlapLength < config.minOverlap) continue;
 
-      const previousWindow = previous.characters.slice(position, position + overlapLength);
-      const nextWindow = next.characters.slice(skip, skip + overlapLength);
+      // \u4ec5\u6bd4\u5bf9\u524d verifyLength \u4e2a\u5b57\u7b26\u5373\u53ef\u533a\u5206\u771f\u63a5\u7f1d\u4e0e\u5076\u7136\u77ed\u4e32\uff0c\u907f\u514d\u5bf9\u8d85\u957f\u91cd\u53e0\u505a\u6574\u6bb5 Levenshtein\u3002
+      const verifyLength = Math.min(overlapLength, config.verifyLength);
+      const previousWindow = previous.characters.slice(position, position + verifyLength);
+      const nextWindow = next.characters.slice(skip, skip + verifyLength);
       const score = similarity(previousWindow, nextWindow);
       if (score < config.similarityThreshold) continue;
 

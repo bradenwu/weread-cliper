@@ -79,6 +79,24 @@ describe('OCR 文本拼接算法', () => {
     expect(result.text.split(shared).length - 1).toBe(1);
   });
 
+  test('next 头部锚点在前文尾部重复时优先校验靠尾部的真实接缝', () => {
+    // next 开头的 16 字锚点在 previous 尾部多次出现（重复小标题/短语），这些假命中
+    // 与真实接缝锚点同分；真实接缝在最靠近尾部处。若只按锚点分数、升序位置校验，前面
+    // 的重复会先占满校验预算导致真实接缝漏检、误判断层。这里用较小的 maxVerifications
+    // 放大预算压力，验证「靠尾部优先」的排序能稳定命中真实接缝。
+    const anchorHead = buildHan(16, 500);
+    const falseBlock = `${anchorHead}${buildHan(1, 50)}`; // 以锚点开头但后续不同
+    const shared = `${anchorHead}${buildHan(30, 900)}`; // 真正与 next 重叠的内容
+    const previous = `${buildHan(20, 1)}${falseBlock.repeat(10)}${shared}`;
+    const next = `${shared}${buildHan(120, 1700)}下一屏新增`;
+
+    const result = stitchTexts(previous, next, { maxVerifications: 3 });
+
+    expect(result.degraded).toBe(false);
+    expect(result.text).toContain('下一屏新增');
+    expect(result.text.split(shared).length - 1).toBe(1);
+  });
+
   test('下一屏顶部有截断噪声行时仍能定位接缝', () => {
     const shared = buildHan(200, 300);
     const previous = `${buildHan(80, 1)}${shared}`;
